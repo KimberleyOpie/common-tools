@@ -1,0 +1,142 @@
+# FULL_METADATA_TEMPLATE.JSON
+#
+# Author:
+# Matt Paget, CSIRO Marine and Atmospheric Research, Canberra, Australia.
+# Initial testing and development was provided by Edward King and Ziyuan Wang.
+# The development of this software was supported by the TERN/AusCover project.
+# The software is open source and is released under Creative Commons
+# Attribution (CC-BY).  Comments, questions, revisions and recommendations
+# can be directed to <data at auscover.org.au>.
+#
+# Version:
+# 1.0   24 March 2011.
+#	Metadata was encoded in a python dict structure in a python script.
+# 2.0   22 November 2011.
+#	Metadata converted to JSON files, then combined into this pseudo-JSON
+#	file to help capture everything in one place with comments.
+#	Edits to the metadata values were provided by Paul Loto'aniu of the
+#	Bureau of Meteorology following his trial of the original
+#	python-netcdf-cf.20110324 code.
+#
+# This is not a valid JSON document.  Instead it presents, with examples, the
+# standard and optional global and variable attributes that should (or can) be
+# used to help create a standards-conforming (e.g., CF-compliant) NetCDF file.
+#
+# Use this document to guide the creation of collection-level, variable-level
+# and file-specific metadata for your dataset.  Copy and paste the attribute
+# names, edit the values, and create a valid JSON file for each level of
+# metadata that makes sense for your application.  Use this document to also
+# guide the collection of file-specific metadata that should be collected.
+#
+# For reference,
+#   JSON format		http://json.org/
+#   CF Conventions	http://cf-pcmdi.llnl.gov/
+
+
+#
+# Global attributes that are common to all variables or files within a dataset
+# or collection.
+#
+{
+    "Conventions": "CF-1.5",
+    "title": "",  # Defined here for ordering. Value is added later.
+    "institution": "NCC Information Officer, Bureau of Meteorology (BoM), 700 Collins St, Melbourne, Australia. http://www.bom.gov.au/climate. webclim@bom.gov.au",
+    "references": "http://www.bom.gov.au/climate\nhttp://www.bom.gov.au/amm/docs/2009/jones_hres.pdf\nhttp://www.csiro.au/awap\nhttp://www.cawcr.gov.au/publications/technicalreports/CTR_013.pdf",
+    "summary": "",  # Defined here for ordering. Value is added later.
+    "creator_name": "NCC Information Officer",
+    "creator_email": "webclim@bom.gov.au",
+    "creator_url": "http://www.bom.gov.au/climate",
+    "license": "Copyright for any data supplied by the Bureau of Meteorology is held in the Commonwealth of Australia and the purchaser shall give acknowledgement of the source in reference to the data. Apart from dealings under the Copyright Act 1968, the purchaser shall not reproduce (electronically or otherwise), modify or supply (by sale or otherwise) these data without written permission from the supplier.",
+    "standard_name_vocabulary": "CF Standard Names, v16",
+    "keywords_vocabulary": "GCMD Science Keywords, Version 6.0.0.0.0",
+    "keywords": "Atmosphere / Precipitation / Rain / Precipitation Amount / Liquid Water Equivalent",
+}
+
+#
+# Additional global attributes that could be used. These are taken from the
+# Attribute Convention for Dataset Discovery (ACDD, http://www.unidata.ucar.edu/software/netcdf-java/formats/DataDiscoveryAttConvention.html)
+#
+{
+    "Metadata_Conventions": "Unidata Dataset Discovery v1.0",
+    "Metadata_Link": "http://www.bom.gov.au/climate\nhttp://www.bom.gov.au/amm/docs/2009/jones_hres.pdf\nhttp://www.csiro.au/awap\nhttp://www.cawcr.gov.au/publications/technicalreports/CTR_013.pdf",
+    "id": "climate-bawap",
+    "naming_authority": "au.gov.bom",
+    "cdm_data_type": "grid",
+    "project": "Gridded surface meteorology for Australia as a contribution to the Australian Water Availability Project (AWAP)",
+    "acknowledgment": "http://www.bom.gov.au/climate\nhttp://www.bom.gov.au/amm/docs/2009/jones_hres.pdf\nhttp://www.csiro.au/awap\nhttp://www.cawcr.gov.au/publications/technicalreports/CTR_013.pdf",
+}
+
+#
+# Variable attributes that are common to all instances of the variable within
+# the dataset or collection.
+#
+{
+    "title": "Ground Rain Gauge Precipiatation 1-Day L3 Australia 5km Gridded V301",
+    "summary": "The daily rainfall data represents the amount of precipitation of any type (including the liquid equivalent of frozen hydrometeors such as hail and snow) observed by means of rain gauges stationed across Australia measuring millimeters of liquid water depth over a 24-hour period.",
+    "rain_day:long_name": "Daily rainfall",
+    "rain_day:standard_name": "lwe_thickness_of_precipitation_amount",
+    "rain_day:units": "mm",
+    "rain_day:cell_method": "time: sum area: mean (interpolated climatology-anomaly method)",
+    "rain_day:_FillValue": -999.0,
+    "rain_day:source": "Interpolated surface observations",
+    "rain_day:references": "Jones, D.A., W. Wang, R. Fawcett (2009) High-quality spatial climate data-sets for Australia, Australian Meteorological and Oceanographic Journal 58 233-248.",
+    "rain_day:comment": "Daily rainfall for the current day is the 24-hour total rainfall from local time 9am the day before to 9am the current day. At about 1:30pm EST, these rainfall values from sites across the country are analysed onto 0.25x0.25 and 0.05x0.05 degree grids with limited quality control. A sophisticated analysis technique described in Jones et al. (2009) is used to correct for baises in the data resulting in gridded data that represents an approximately square area with sides of about 5 kilometres (0.05 degrees) resolution covering Australia.",
+    "rain:grid_mapping": "wgs84",
+}
+
+#
+# Projection/Datum variable attributes.
+# See the latest CF-convention or http://www.unidata.ucar.edu/software/netcdf-java/reference/StandardCoordinateTransforms.html
+#
+{
+    "wgs84:grid_mapping_name" = "latitude_longitude",
+    "wgs84:longitude_of_prime_meridian" = 0.0,
+    "wgs84:semi_major_axis" = 6378137.0,
+    "wgs84:inverse_flattening" = 298.257223563,
+}
+
+#
+# Dimension attributes
+#
+{
+    "time:units" = "days since 1800-01-01 00:00:00.0",
+    "time:calendar" = "gregorian",
+    "time:long_name" = "time",
+    "time:standard_name" = "time",
+    "latitude:units" = "degrees_north",
+    "latitude:long_name" = "latitude",
+    "latitude:standard_name" = "latitude",
+    "longitude:units" = "degrees_east",
+    "longitude:long_name" = "longitude",
+    "longitude:standard_name" = "longitude",
+}
+
+#
+# Global attributes that are file-specific
+#
+{
+    "history": "BUREAU OF METEOROLOGY\n[HEADER]\nRAINFALL    ANALYSIS:       2011020120110201\nLENGTH SCALE FOR ANALYSIS               80.0\nLATITUDE - LONGITUDE GRID\nROW NUMBER AT SOUTHWEST CORNER           691\nCOLUMN NUMBER AT SOUTHWEST CORNER          1\nROW CHANGES WITH LONGITUDE\nNUMBER OF LONGITUDES IN GRID             886\nNUMBER OF LATITUDES  IN GRID             691\nSOUTHWEST LONGITUDE                    112.000\nSOUTHWEST LATITUDE                      44.500\nGRID INCREMENT OF LONGITUDE             0.050\nGRID INCREMENT OF LATITUDE              0.050\nNUMBER OF STATIONS REPORTING            1668\nANALYSIS VERSION NUMBER                 3.02\n[ANALYSIS TIME 2011-02-21 09:21:36 UTC]\nLAST UPDATED: 2011-02-21 09:21:53 UTC\n\n20111012T051015:  Reformatted to NetCDF\nReduced precision of values to 1 decimal place (for consistency).\nCreated a consistent no-data value of -999.0 for all products.",
+    "date_created": "20110221T092153",
+    "date_modified": "20111012T051015",
+    "geospatial_lat_min": -44.0,
+    "geospatial_lat_max": -10.0,
+    "geospatial_lat_step": 0.05,
+    "geospatial_lat_units": "degrees_north",
+    "geospatial_lon_min": 112.0,
+    "geospatial_lon_max": 154.0,
+    "geospatial_lon_step": 0.05,
+    "geospatial_lon_units": "degrees_east",
+    "time_coverage_start": "2011-02-01",
+    "time_coverage_end": "2011-02-01",
+    "time_coverage_duration": "P1D",
+    "time_coverage_resolution": "P1D",
+}
+
+#
+# Variable attributes that are file-specific
+#
+{
+    "rain_day:sha1_ascii": "b2a259c9f56a92b13a3c13546996f324c2d02f62",
+    "rain_day:sha1_float": "527fd6edea541334fff479982c1b611090dc70e9",
+}
+
