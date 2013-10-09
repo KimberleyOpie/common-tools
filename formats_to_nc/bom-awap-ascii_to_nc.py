@@ -216,20 +216,20 @@ def set_datetime(fname, datadict=None):
 
     Edit the components of this routine for your particular needs.
     """
-    m = re.search('^(\d{4})(\d\d)',fname)
+    print fname
+    m = re.search('(\d{4})(\d\d)(\d\d)(\d{4})(\d\d)(\d\d)',fname)
     d1year = int(m.group(1))
     d1month = int(m.group(2))
-    d1day = 1
-
-    # Monthly = (d1month + 1) - (1 day)
-    d2year = d1year
-    d2month = d1month + 1
-    if d2month == 13:
-        d2month = 1
-        d2year = d2year + 1
+    d1day = int(m.group(3))
+    d2year = int(m.group(4))
+    d2month = int(m.group(5))
+    d2day = int(m.group(6))
 
     d1 = dt.datetime(d1year,d1month,d1day)
-    d2 = dt.datetime(d2year,d2month,d1day) - dt.timedelta(days=1)
+    d2 = dt.datetime(d2year,d2month,d2day)
+
+    dur = "P1M"
+    if d1day == d2day: dur = "P1D"
 
     # Create/update a datadict, which adds some standardised labels for later
     if datadict is None: datadict = dict()
@@ -241,8 +241,8 @@ def set_datetime(fname, datadict=None):
         'dmodify':dt.datetime.utcnow().strftime("%Y%m%dT%H%M%S"),
         'tmin':d1.strftime("%Y-%m-%d"),
         'tmax':d2.strftime("%Y-%m-%d"),
-        'tduration':"P1M",
-        'tresolution':"P1M"
+        'tduration':dur,
+        'tresolution':dur
     })
 
     # Return as a tuple
