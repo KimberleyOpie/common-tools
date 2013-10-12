@@ -128,13 +128,13 @@ def set_latlon(meta, datadict=None):
     datadict.update({
         'xmin':min(lonvec),
         'xmax':max(lonvec),
-        'xstep':meta['cellsize'],
-        'xnum':meta['ncols'],
+        'xstep':float(meta['cellsize']),
+        'xnum':int(meta['ncols']),
         'xunits':'degrees_east',
         'ymin':min(latvec),
         'ymax':max(latvec),
-        'ystep':meta['cellsize'],
-        'ynum':meta['nrows'],
+        'ystep':float(meta['cellsize']),
+        'ynum':int(meta['nrows']),
         'yunits':'degrees_north'
     })
 
@@ -216,20 +216,20 @@ def set_datetime(fname, datadict=None):
 
     Edit the components of this routine for your particular needs.
     """
-    m = re.search('^(\d{4})(\d\d)',fname)
+    # Example: ..../2012010120120101.grid
+    m = re.search('(\d{4})(\d\d)(\d\d)(\d{4})(\d\d)(\d\d)',fname)
     d1year = int(m.group(1))
     d1month = int(m.group(2))
-    d1day = 1
-
-    # Monthly = (d1month + 1) - (1 day)
-    d2year = d1year
-    d2month = d1month + 1
-    if d2month == 13:
-        d2month = 1
-        d2year = d2year + 1
+    d1day = int(m.group(3))
+    d2year = int(m.group(4))
+    d2month = int(m.group(5))
+    d2day = int(m.group(6))
 
     d1 = dt.datetime(d1year,d1month,d1day)
-    d2 = dt.datetime(d2year,d2month,d1day) - dt.timedelta(days=1)
+    d2 = dt.datetime(d2year,d2month,d2day)
+
+    tdur = "P1M"
+    if d1 == d2: tdur = "P1D"
 
     # Create/update a datadict, which adds some standardised labels for later
     if datadict is None: datadict = dict()
@@ -241,8 +241,8 @@ def set_datetime(fname, datadict=None):
         'dmodify':dt.datetime.utcnow().strftime("%Y%m%dT%H%M%S"),
         'tmin':d1.strftime("%Y-%m-%d"),
         'tmax':d2.strftime("%Y-%m-%d"),
-        'tduration':"P1M",
-        'tresolution':"P1M"
+        'tduration':tdur,
+        'tresolution':tdur
     })
 
     # Return as a tuple
@@ -268,7 +268,7 @@ def set_varname(fname, datadict=None):
                      'varunits':varunit})
 
     # Capture the SHA1 digest of the input file
-    datadict['sha1'] = hashlib.sha1(open(arcfilename,'r').read()).hexdigest()
+    datadict['sha1'] = hashlib.sha1(open(fname,'r').read()).hexdigest()
 
     return datadict
 
@@ -297,19 +297,18 @@ def set_attributes(fname, meta, datadict):
     ncmeta['date_modified'] = datadict['dmodify']
     ncmeta['geospatial_lat_min'] = "{0:.2f}".format(datadict['ymin'])
     ncmeta['geospatial_lat_max'] = "{0:.2f}".format(datadict['ymax'])
-    ncmeta['geospatial_lat_step'] = "{0:.2f}".format(datadict['ystep'])
     ncmeta['geospatial_lat_units'] = datadict['yunits']
+    ncmeta['geospatial_lat_resolution'] = "{0:.2f}".format(datadict['ystep'])
     ncmeta['geospatial_lon_min'] = "{0:.2f}".format(datadict['xmin'])
     ncmeta['geospatial_lon_max'] = "{0:.2f}".format(datadict['xmax'])
-    ncmeta['geospatial_lon_step'] = "{0:.2f}".format(datadict['xstep'])
     ncmeta['geospatial_lon_units'] = datadict['xunits']
+    ncmeta['geospatial_lon_resolution'] = "{0:.2f}".format(datadict['xstep'])
     ncmeta['time_coverage_start'] = datadict['tmin']
     ncmeta['time_coverage_end'] = datadict['tmax']
     ncmeta['time_coverage_duration'] = datadict['tduration']
     ncmeta['time_coverage_resolution'] = datadict['tresolution']
     ncmeta[vname+':long_name'] = datadict['varlong']
     ncmeta[vname+':units'] = datadict['varunits']
-    ncmeta[vname+':_FillValue'] = datadict['missing']
     ncmeta[vname+':grid_mapping'] = 'crs'
     ncmeta[vname+':sha1_arcasciigrid'] = datadict['sha1']
     ncmeta['latitude:units'] = datadict['yunits']
@@ -357,22 +356,22 @@ def asciigrid_to_nc(arcfilename,fileroot):
     vartype = datadict['datatype']
     fillval = datadict['missing']
     timevec = [d1]
-    ncobj = nb.nc_open(fileroot+'.nc','w',format=nc_format)
-    nb.nc_set_timelatlon(ncobj,None,len(latvec),len(lonvec)) # unlimited time
-    nb.nc_set_var(ncobj,varname,dtype=vartype,fill=fillval,zlib=nc_compress)
-    nb.nc_set_var(ncobj,'crs',dims=(),dtype="i4")  # Grid mapping container
-    nb.nc_add_time(ncobj,timevec)
-    nb.nc_add_data(ncobj,'latitude',latvec)
-    nb.nc_add_data(ncobj,'longitude',lonvec)
+    ncobj = nb.ncopen(fileroot+'.nc','w',format=nc_format)
+    nb.set_timelatlon(ncobj,None,len(latvec),len(lonvec)) # unlimited time
+    nb.set_variable(ncobj,varname,dtype=vartype,fill=fillval,zlib=nc_compress)
+    nb.set_variable(ncobj,'crs',dims=(),dtype="i4")  # Grid mapping container
+    nb.add_time(ncobj,timevec)
+    nb.add_data(ncobj,'latitude',latvec)
+    nb.add_data(ncobj,'longitude',lonvec)
     if debug:
         print varname,data.shape
-        nb.nc_show_dims(ncobj)
-    # nc_add_data should work but is presently broken. Use direct method
-    #nb.nc_add_data(ncobj,varname,data)
+        nb.show_dims(ncobj)
+    # nb.add_data should work but is presently broken. Use direct method
+    #nb.add_data(ncobj,varname,data)
     #ncobj.variables[varname][0,:,:] = data  # 2D numpy array
     ncobj.variables[varname][:] = data  # 3D numpy array
-    nb.nc_set_attributes(ncobj,attributes)
-    nb.nc_close(ncobj)
+    nb.set_attributes(ncobj,attributes)
+    nb.ncclose(ncobj)
     print 'Wrote:',fileroot+'.nc'
 
     # Write metadata to json
