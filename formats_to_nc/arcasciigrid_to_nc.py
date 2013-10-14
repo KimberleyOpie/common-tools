@@ -29,6 +29,15 @@
 # Extra hooks are provided to capture per-file metadata in JSON format files.
 # The JSON metadata can be edited, collated and added to the netcdf file as
 # attributes as a seperate process (see json_handler.py).
+#
+# Requires:
+#  NumPy
+#  OrderedDict
+#  https://github.com/cmar-rs/common-lib/python/netcdf_builder.py
+# Optional:
+#  https://github.com/cmar-rs/common-lib/python/numpy_routines.py
+#  https://github.com/cmar-rs/common-lib/python/json_handler.py
+
 
 import sys, os, re
 import numpy as np
@@ -144,7 +153,7 @@ def set_latlon(meta, datadict=None):
 def asciigrid_to_numpy(datarows, meta, datadict=None):
     """
     Convert a list of lists of (string) values to a 3D NumPy array.
-    Args meta and datadict are not used but are retained for consistency.
+    Arg meta is not used but is retained for consistency.
     """
     # Copy datarows into a 3D array
     # Want shape to align with time,latitude,longitude
@@ -216,7 +225,7 @@ def set_datetime(fname, datadict=None):
 
     Edit the components of this routine for your particular needs.
     """
-    # Example: ..../2012010120120101.grid
+    # Example: ..../arcasciigrid_2012010120120101.grid
     m = re.search('(\d{4})(\d\d)(\d\d)(\d{4})(\d\d)(\d\d)',fname)
     d1year = int(m.group(1))
     d1month = int(m.group(2))
@@ -274,6 +283,13 @@ def set_varname(fname, datadict=None):
 
 def set_attributes(fname, meta, datadict):
     """
+    Generate a dictionary with keys representing the actual attribute names
+    to be added to the netCDF file. Most of the values come from the datadict
+    dictionary, which has sanitised and collated most of the required and
+    available information. Some additional keys/values are added here, such as
+    the history attribute.
+    The returned dictionary can be added directly to a netCDF file (via
+    netcdf_builder.set_attributes()).
     """
     # Define a new metadata dict to control the order of elements
     ncmeta = OrderedDict()
@@ -322,7 +338,7 @@ def set_attributes(fname, meta, datadict):
 def asciigrid_to_nc(arcfilename,fileroot):
     """
     The main routine that calls the calls other routines to prepare the data
-    and metadata and create the netcdf file.
+    and metadata and create the netCDF file.
     """
     # Read ascii grid file
     asciihead,asciidata,asciitail = split_asciigrid(arcfilename)
@@ -365,7 +381,7 @@ def asciigrid_to_nc(arcfilename,fileroot):
     nb.add_data(ncobj,'longitude',lonvec)
     if debug:
         print varname,data.shape
-        nb.show_dims(ncobj)
+        nb.show_dimensions(ncobj)
     # nb.add_data should work but is presently broken. Use direct method
     #nb.add_data(ncobj,varname,data)
     #ncobj.variables[varname][0,:,:] = data  # 2D numpy array
@@ -385,9 +401,9 @@ if __name__ == '__main__':
         print "  ", sys.argv[0], "path/to/arc_ascii_grid_file"
         print "Notes:"
         print "  At least two subroutines need to be edited for each type of data, namely:"
-        print "    get_datetime - Create a time coordinate value, possibly as a regular"
+        print "    set_datetime - Create a time coordinate value, possibly as a regular"
         print "                   expression match on the input filename or hardcoded."
-        print "    get_varname  - Create the netcdf variable name, possibly as a regular"
+        print "    set_varname  - Create the netcdf variable name, possibly as a regular"
         print "                   expression match on the input filename or harcoded."
         print "  Additionally, you may want to you add or amend some of the array manipulation"
         print "  routines given in the subroutine resample_array. This subroutine is not"

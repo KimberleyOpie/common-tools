@@ -1,19 +1,12 @@
-# REFORMAT_BOM_ASCII.PY
+# ARCFLTGRID_TO_NC.PY
 #
-# Master script to split a BoM ArcView ASCII grid file into its component
-# parts (header, data, tail metadata).
-#
-# The header defines elements of the data array and can be optionally written
-# to an ASCII file.
-#
-# The data is converted to a numpy array, resampled on to a standard (SILO)
-# grid, precision of values reduced to 1 decimal place (for consistency), and
-# the missing value is redefined to -999.0.
-# The numpy array is optionally written to both a flat binary f32 file,
-# and/or to a CF and ACDD compliant netCDF file.
-#
-# The tail metadata is written to the netCDF file as the history attribute.
-# Optionally, it may also be written to an ASCII file.
+# Requires:
+#  NumPy
+#  OrderedDict
+#  https://github.com/cmar-rs/common-lib/python/netcdf_builder.py
+# Optional:
+#  https://github.com/cmar-rs/common-lib/python/numpy_routines.py
+#  https://github.com/cmar-rs/common-lib/python/json_handler.py
 
 import sys, os, re
 import numpy as np
@@ -39,7 +32,6 @@ def arcflthdr_to_dict(header):
     r = re.compile("^(\S+)\s+(.+)$")
     f = open(header,'r')
     for line in f:
-        #line = line.strip()
         m = re.match(r, line.strip())
         if m:
             meta[m.group(1).lower()] = m.group(2)
@@ -72,23 +64,22 @@ def set_latlon(meta, datadict=None):
     datadict.update({
         'xmin':min(lonvec),
         'xmax':max(lonvec),
-        'xstep':meta['cellsize'],
-        'xnum':meta['ncols'],
+        'xstep':float(meta['cellsize']),
+        'xnum':int(meta['ncols']),
         'xunits':'degrees_east',
         'ymin':min(latvec),
         'ymax':max(latvec),
-        'ystep':meta['cellsize'],
-        'ynum':meta['nrows'],
+        'ystep':float(meta['cellsize']),
+        'ynum':int(meta['nrows']),
         'yunits':'degrees_north'
     })
 
     # Return a tuple
     return latvec,lonvec,datadict
 
-def fltgrid_to_numpy(fltfile, meta, datadict=None):
+def floatgrid_to_numpy(fltfile, meta, datadict=None):
     """
-    Convert a binary file to a 3D numpy array.
-    Arg datadict is not used but is retained for consistency.
+    Convert a binary file to a 3D NumPy array.
     """
     # Default datatype for Arc flt grids
     dtype = '<f4'  # little-endian float32
@@ -102,7 +93,12 @@ def fltgrid_to_numpy(fltfile, meta, datadict=None):
     # Copy data into a 3D array
     # Want shape to align with time,latitude,longitude
     data = np.fromfile(fltfile,dtype=dtype)
-    data.reshape(1, int(meta['nrows']), int(meta['ncols']))
+    data.shape = (1, int(meta['nrows']), int(meta['ncols']))
+
+    # Create/update a datadict, which includes standardised labels for later
+    if datadict is None: datadict = dict()
+    datadict.update({'datatype':'f4'})  # Float32. Endian-ness is managed by
+                                        # the netCDF library.
 
     # Return a tuple
     return data,datadict
@@ -117,6 +113,7 @@ def resample_array(input_data, input_lat, input_lon, input_dict=None):
     that input_data and output_data arrays are being used and referenced as
     required.
     """
+    # See arcasciigrid_to_nc.py for code snippet examples
     pass
 
 def set_datetime(fname, datadict=None):
@@ -127,10 +124,11 @@ def set_datetime(fname, datadict=None):
 
     Edit the components of this routine for your particular needs.
     """
-    m = re.search('^(\d{4})(\d\d)',fname)
+    # Example: ..../arcfltgrid_WRel2_20130113.{flt,hdr}
+    m = re.search('(\d{4})(\d\d)(\d\d)',fname)
     d1year = int(m.group(1))
     d1month = int(m.group(2))
-    d1day = 1
+    d1day = int(m.group(3))
 
     # Monthly = (d1month + 1) - (1 day)
     d2year = d1year
@@ -141,6 +139,8 @@ def set_datetime(fname, datadict=None):
 
     d1 = dt.datetime(d1year,d1month,d1day)
     d2 = dt.datetime(d2year,d2month,d1day) - dt.timedelta(days=1)
+
+    tdur = "P1M"
 
     # Create/update a datadict, which adds some standardised labels for later
     if datadict is None: datadict = dict()
@@ -167,6 +167,7 @@ def set_varname(fname, datadict=None):
 
     Edit the components of this routine for your particular needs.
     """
+    part = re.search('\w+',fname)
     varname = "varname1"
     varlong = "long variable name"
     varunit = "unit"
@@ -176,63 +177,144 @@ def set_varname(fname, datadict=None):
     datadict.update({'varname':varname,
                      'varlong':varlong,
                      'varunits':varunit})
+
+    # Capture the SHA1 digest of the input flt file
+    datadict['sha1'] = hashlib.sha1(open(fname,'r').read()).hexdigest()
+
     return datadict
 
-def set_attributes(fname, meta, datadict=None):
-    # Add a default no_data value if required. If you want the default value
-    # set outside this routine then pass it in as meta['nodata_value'].
+def set_attributes(fltfile, meta, datadict=None):
+    """
+    Generate a dictionary with keys representing the actual attribute names
+    to be added to the netCDF file. Most of the values come from the datadict
+    dictionary, which has sanitised and collated most of the required and
+    available information. Some additional keys/values are added here, such as
+    the history attribute.
+    The returned dictionary can be added directly to a netCDF file (via
+    netcdf_builder.set_attributes()).
+    """
+    # Define a new metadata dict to control the order of elements
+    ncmeta = OrderedDict()
+
+    # Create some history text. Added in a list so the join character can be
+    # changed easily.
+    history = [datadict['dmodify']+": Reformatted to NetCDF."]
+    history.extend(["Input file: "+fltfile])
+    # Add some details about any modifications to the data
+    # history.extend("Reduced precision of values to 1 decimal place.")
+    # history.extend("Created a no-data value of {0}.".format(datadict['missing']))
+    history.extend(["If present, the \"sha1_arcfltgrid\" attribute of a variable is the SHA1 hex digest of the input Arc Float Grid. This allows the Arc Float Grid and netCDF files to be uniquely linked irrespective of filename changes."])
+
+    # The date*, geospatial* and time* attributes come from the Attribute
+    # Convention for Dataset Discovery (ACDD). See,
+    # http://www.unidata.ucar.edu/software/netcdf/conventions.html
+    # These are optional for a NetCDF file but no harm in having them.
+    vname = datadict['varname']
+    ncmeta['history'] = ' '.join(history)
+    ncmeta['date_created'] = datadict['dcreate']
+    ncmeta['date_modified'] = datadict['dmodify']
+    ncmeta['geospatial_lat_min'] = "{0:.2f}".format(datadict['ymin'])
+    ncmeta['geospatial_lat_max'] = "{0:.2f}".format(datadict['ymax'])
+    ncmeta['geospatial_lat_units'] = datadict['yunits']
+    ncmeta['geospatial_lat_resolution'] = "{0:.2f}".format(datadict['ystep'])
+    ncmeta['geospatial_lon_min'] = "{0:.2f}".format(datadict['xmin'])
+    ncmeta['geospatial_lon_max'] = "{0:.2f}".format(datadict['xmax'])
+    ncmeta['geospatial_lon_units'] = datadict['xunits']
+    ncmeta['geospatial_lon_resolution'] = "{0:.2f}".format(datadict['xstep'])
+    ncmeta['time_coverage_start'] = datadict['tmin']
+    ncmeta['time_coverage_end'] = datadict['tmax']
+    ncmeta['time_coverage_duration'] = datadict['tduration']
+    ncmeta['time_coverage_resolution'] = datadict['tresolution']
+    ncmeta[vname+':long_name'] = datadict['varlong']
+    ncmeta[vname+':units'] = datadict['varunits']
+    ncmeta[vname+':grid_mapping'] = 'crs'
+    ncmeta[vname+':sha1_arcfloatgrid'] = datadict['sha1']
+    ncmeta['latitude:units'] = datadict['yunits']
+    ncmeta['longitude:units'] = datadict['xunits']
+    ncmeta['crs:grid_mapping_name'] = "latitude_longitude"
+    ncmeta['crs:longitude_of_prime_meridian'] = 0.0
+    ncmeta['crs:semi_major_axis'] = 6378137.0
+    ncmeta['crs:inverse_flattening'] = 298.257223563
+    return ncmeta
+
+def floatgrid_to_nc(arcfilename,fileroot):
+    """
+    The main routine that calls the calls other routines to prepare the data
+    and metadata and create the netCDF file.
+    """
+    # Set input filenames
+    fltfile = re.sub('\.\w+$','.flt',arcfilename)
+    hdrfile = re.sub('\.\w+$','.hdr',arcfilename)
+    
+    # Read metadata data
+    meta = arcflthdr_to_dict(hdrfile)
+
+    # Create numpy components
+    latvec,lonvec,datadict = set_latlon(meta)
+    data,datadict = floatgrid_to_numpy(fltfile,meta,datadict)
+
+    # Resample or edit array
+    # Add a default no_data value if required.
     miss = -999.0
     if 'nodata_value' in meta: miss = meta['nodata_value']
+    datadict['missing'] = miss
+    #data,latvec,lonvec,datadict = resample_array(data,latvec,lonvec,datadict)
 
-    # Create/update a datadict, which includes standardised labels for later
-    if datadict is None: datadict = dict()
-    datadict.update({
-        'missing':miss
-        'sha1_arcfloat':hashlib.sha1(open(fltfile,'r').read()).hexdigest()
-    }) 
+    # Prepare time, variable name and metadata
+    d1,d2,datadict = set_datetime(fltfile,datadict)
+    datadict = set_varname(fltfile,datadict)
+    attributes = set_attributes(fltfile,meta,datadict)
 
-    # Make a :history global attribute
-    history = []
-    now = dt.datetime.now()
-    history.append("flttonc at %04d-%02d-%02dT%02d:%02d:%02d" % (now.year, now.month, now.day, now.hour, now.minute, now.second))
-    history.append("Input file: "+fltstem+".flt")
+    # Netcdf options
+    # http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html
+    nc_format = 'NETCDF4_CLASSIC'
+    nc_compress = True
+    debug = False
 
-    attr = {}
-    if 'nodata_value' in meta:
-        attr[varname+':_FillValue'] = meta['nodata_value']
-    if units:
-        attr[varname+':units'] = units
-    attr['history'] = '\n'.join(history)
+    # Write netcdf file
+    if os.path.exists(fileroot+'.nc'): os.remove(fileroot+'.nc')
+    varname = datadict['varname']
+    vartype = datadict['datatype']
+    fillval = datadict['missing']
+    timevec = [d1]
+    ncobj = nb.ncopen(fileroot+'.nc','w',format=nc_format)
+    nb.set_timelatlon(ncobj,None,len(latvec),len(lonvec)) # unlimited time
+    nb.set_variable(ncobj,varname,dtype=vartype,fill=fillval,zlib=nc_compress)
+    nb.set_variable(ncobj,'crs',dims=(),dtype="i4")  # Grid mapping container
+    nb.add_time(ncobj,timevec)
+    nb.add_data(ncobj,'latitude',latvec)
+    nb.add_data(ncobj,'longitude',lonvec)
+    if debug:
+        print varname,data.shape
+        nb.show_dimensions(ncobj)
+    # nb.add_data should work but is presently broken. Use direct method
+    #nb.add_data(ncobj,varname,data)
+    #ncobj.variables[varname][0,:,:] = data  # 2D numpy array
+    ncobj.variables[varname][:] = data  # 3D numpy array
+    nb.set_attributes(ncobj,attributes)
+    nb.ncclose(ncobj)
+    print 'Wrote:',fileroot+'.nc'
 
-    # Write the netCDF file
-    ncobj = nh.nc3_open(ncfile,'w')
-    nh.nc3_set_timelatlon(ncobj,1,len(lat),len(lon))
-    nh.nc3_set_var(ncobj,varname)
-    nh.nc3_set_var(ncobj,'wgs84',dims=())  # Grid mapping container
-    nh.nc3_add_time(ncobj,[d])
-    nh.nc3_add_data(ncobj,'latitude',lat)
-    nh.nc3_add_data(ncobj,'longitude',lon)
-    nh.nc3_add_data(ncobj,varname,a)
-    nh.nc3_set_attributes(ncobj,attr)
-    nh.nc3_close(ncobj)
-    return ncfile
-
-def flttonc(fltstem, ncfile, varname, yyyymmdd, units=None):
-    """Main function to process a binary flt and hdr with name FLTSTEM
-       to netCDF file NCFILE with variable name VARNAME.  Time is set to
-       the date corresponding to YYYYMMDD.  Units can be provided optionally.
-    """
-    pass
-    d = dt.datetime.strptime(yyyymmdd, "%Y%M%d")
+    # Write metadata to json
+    if os.path.exists(fileroot+'.json'): os.remove(fileroot+'.json')
+    jh.json_dump(attributes,fileroot+'.json')
 
 
 if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print "Usage:"
+        print "  ", sys.argv[0], "path/to/arc_float_grid_file"
+        print "Notes:"
+        print "  At least two subroutines need to be edited for each type of data, namely:"
+        print "    set_datetime - Create a time coordinate value, possibly as a regular"
+        print "                   expression match on the input filename or hardcoded."
+        print "    set_varname  - Create the netcdf variable name, possibly as a regular"
+        print "                   expression match on the input filename or harcoded."
+        print "  Additionally, you may want to you add or amend some of the array manipulation"
+        print "  routines given in the subroutine resample_array. This subroutine is not"
+        print "  invoked by default."
+        exit()
+    else:
+        fileroot = re.sub('.\w+$','',sys.argv[1])
+        floatgrid_to_nc(sys.argv[1],fileroot)
 
-    if len(sys.argv) != 5 and len(sys.argv) != 6:
-        print "Usage: python flttonc.py FLTSTEM NCFILE VARNAME YYYMMDD"
-        sys.exit(1)
-
-    if len(sys.argv) == 5:
-        flttonc(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
-    if len(sys.argv) == 6:
-        flttonc(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
