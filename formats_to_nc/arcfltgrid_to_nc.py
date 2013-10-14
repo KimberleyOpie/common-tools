@@ -256,7 +256,7 @@ def floatgrid_to_nc(arcfilename,fileroot):
     # Resample or edit array
     # Add a default no_data value if required.
     miss = -999.0
-    if 'nodata_value' in meta: miss = meta['nodata_value']
+    if 'nodata_value' in meta: miss = float(meta['nodata_value'])
     datadict['missing'] = miss
     #data,latvec,lonvec,datadict = resample_array(data,latvec,lonvec,datadict)
 

@@ -1,7 +1,7 @@
 {
-    "history": "20131012T130012: Reformatted to NetCDF. Input file: ../../data/csiro-griddedmet/rain/2012010120120101.grid If present, the \"sha1_arcasciigrid\" attribute of a variable is the SHA1 hex digest of the input Arc ASCII Grid. This allows the Arc ASCII Grid and netCDF files to be uniquely linked irrespective of filename changes.", 
+    "history": "20131014T040932: Reformatted to NetCDF. Input file: test_files/arcasciigrid_2012010120120101.grid If present, the \"sha1_arcasciigrid\" attribute of a variable is the SHA1 hex digest of the input Arc ASCII Grid. This allows the Arc ASCII Grid and netCDF files to be uniquely linked irrespective of filename changes.", 
     "date_created": "unknown", 
-    "date_modified": "20131012T130012", 
+    "date_modified": "20131014T040932", 
     "geospatial_lat_min": "-44.50", 
     "geospatial_lat_max": "-10.00", 
     "geospatial_lat_units": "degrees_north", 
