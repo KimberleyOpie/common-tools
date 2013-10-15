@@ -1,10 +1,10 @@
-# ARCASCIIGRID_TO_FLT.PY
+# BOMASCII_TO_CSIROFLT.PY
 #
 # Author:
 # Matt Paget, CSIRO Marine and Atmospheric Research, Canberra, Australia.
 #
 # Available from:
-# https://github.com/cmar-rs/common-tools/formats_to_nc/arcasciigrid_to_flt.py
+# https://github.com/cmar-rs/common-tools/raw_data_tools/bomascii_to_csiroflt.py
 #
 # License:
 # Apache License, 2.0 http://www.apache.org/licenses/LICENSE-2.0
@@ -31,6 +31,7 @@ import sys, os, re
 import numpy as np
 import hashlib
 import datetime as dt
+import copy
 try: from collections import OrderedDict
 except ImportError:
     try: from ordereddict import OrderedDict
@@ -164,6 +165,13 @@ def resample_array(input_data, input_lat, input_lon, input_dict=None):
     that input_data and output_data arrays are being used and referenced as
     required.
     """
+    # Check missing value
+    # Some files gave an incorrect missing value, so we check for the
+    # actual missing value before using/replacing it.
+    checkfor = 99999.9
+    if np.sum(np.where(input_data==checkfor,1,0)) > input_data.size*0.7:
+        input_dict.update({'missing':checkfor})
+
     # Copy dict
     if input_dict is None:
         output_dict = dict()
@@ -182,8 +190,9 @@ def resample_array(input_data, input_lat, input_lon, input_dict=None):
                                       + input_dict['missing']
 
     # Copy data onto output grid
-    output_data = nr.copy_grids(input_data,input_lon,input_lat,
-                             output_data,output_lon,output_lat)
+    output_data = nr.copy_grids(input_data[0,:,:],input_lon,input_lat,
+                                output_data,output_lon,output_lat)
+    output_data.shape = (1,yn,xn)
     output_dict.update({'xmin':min(output_lon),
                         'xmax':max(output_lon),
                         'xstep':xc,
@@ -194,14 +203,15 @@ def resample_array(input_data, input_lat, input_lon, input_dict=None):
                         'ynum':yn,})
 
     # Reduce precision of values to 1 decimal place and convert to f32
-    output_data = input_data.round(decimals=1)
-    output_data = np.float32(input_data)
+    output_data = output_data.round(decimals=1)
+    output_data = np.float32(output_data)
     output_dict.update({'datatype':'f4'})
 
     # Change missing value
-    miss = -999
-    output_data = nr.replace_values(input_data,input_dict['missing'],miss)
-    output_dict.update({'missing':miss})
+    miss = -999.0
+    if input_dict['missing'] != miss:
+        output_data = nr.replace_values(output_data,input_dict['missing'],miss)
+        output_dict.update({'missing':miss})
 
     return (output_data, output_lat, output_lon, output_dict)
 
@@ -240,7 +250,7 @@ def asciigrid_to_flt(arcfilename,fileroot):
     miss = -999.0
     if 'nodata_value' in meta: miss = float(meta['nodata_value'])
     datadict['missing'] = miss
-    #data,latvec,lonvec,datadict = resample_array(data,latvec,lonvec,datadict)
+    data,latvec,lonvec,datadict = resample_array(data,latvec,lonvec,datadict)
 
     # Prepare metadata
     attributes = set_attributes(datadict)

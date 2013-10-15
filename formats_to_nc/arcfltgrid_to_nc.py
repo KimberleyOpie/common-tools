@@ -1,5 +1,31 @@
 # ARCFLTGRID_TO_NC.PY
 #
+# Author:
+# Matt Paget, CSIRO Marine and Atmospheric Research, Canberra, Australia.
+#
+# Available from:
+# https://github.com/cmar-rs/common-tools/formats_to_nc/arcfltgrid_to_nc.py
+#
+# License:
+# Apache License, 2.0 http://www.apache.org/licenses/LICENSE-2.0
+#
+# Version:
+# 1.0   15 October 2013
+#       Adapted from arcasciigrid_to_nc.py
+#
+# Basically the header file is parsed to a dictionary and  the float file is
+# parsed to a numpy array. A netcdf file is built from the coordinate variables
+# and the data array (using netcdf_builder.py).
+#
+# The time dimension is generally parsed from the filename as its not readily
+# provided in the header information and is rarely added as a parsable element
+# in the file. As such the parsing regular expression and time period value
+# may need to be adjusted for your application.
+#
+# Extra hooks are provided to capture per-file metadata in JSON format files.
+# The JSON metadata can be edited, collated and added to the netcdf file as
+# attributes as a seperate process (see json_handler.py).
+#
 # Requires:
 #  NumPy
 #  OrderedDict

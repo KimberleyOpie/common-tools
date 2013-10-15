@@ -1,19 +1,39 @@
-# REFORMAT_BOM_ASCII.PY
+# ENVIFLTGRID_TO_NC.PY
 #
-# Master script to split a BoM ArcView ASCII grid file into its component
-# parts (header, data, tail metadata).
+# Author:
+# Matt Paget, CSIRO Marine and Atmospheric Research, Canberra, Australia.
 #
-# The header defines elements of the data array and can be optionally written
-# to an ASCII file.
+# Available from:
+# https://github.com/cmar-rs/common-tools/formats_to_nc/envifltgrid_to_nc.py
 #
-# The data is converted to a numpy array, resampled on to a standard (SILO)
-# grid, precision of values reduced to 1 decimal place (for consistency), and
-# the missing value is redefined to -999.0.
-# The numpy array is optionally written to both a flat binary f32 file,
-# and/or to a CF and ACDD compliant netCDF file.
+# License:
+# Apache License, 2.0 http://www.apache.org/licenses/LICENSE-2.0
 #
-# The tail metadata is written to the netCDF file as the history attribute.
-# Optionally, it may also be written to an ASCII file.
+# Version:
+# 1.0   15 October 2013
+#       Adapted from arcfltgrid_to_nc.py
+#       Not working code yet.
+#
+# Basically the header file is parsed to a dictionary and  the float file is
+# parsed to a numpy array. A netcdf file is built from the coordinate variables
+# and the data array (using netcdf_builder.py).
+#
+# The time dimension is generally parsed from the filename as its not readily
+# provided in the header information and is rarely added as a parsable element
+# in the file. As such the parsing regular expression and time period value
+# may need to be adjusted for your application.
+#
+# Extra hooks are provided to capture per-file metadata in JSON format files.
+# The JSON metadata can be edited, collated and added to the netcdf file as
+# attributes as a seperate process (see json_handler.py).
+#
+# Requires:
+#  NumPy
+#  OrderedDict
+#  https://github.com/cmar-rs/common-lib/python/netcdf_builder.py
+# Optional:
+#  https://github.com/cmar-rs/common-lib/python/numpy_routines.py
+#  https://github.com/cmar-rs/common-lib/python/json_handler.py
 
 import sys, os, re
 import numpy as np

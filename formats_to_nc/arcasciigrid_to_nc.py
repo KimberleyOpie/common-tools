@@ -3,18 +3,21 @@
 # Author:
 # Matt Paget, CSIRO Marine and Atmospheric Research, Canberra, Australia.
 #
-# The software is open source and is released under Creative Commons
-# Attribution (CC-BY).  Comments, questions, revisions and recommendations
-# can be directed to <data at auscover.org.au>.
+# Available from:
+# https://github.com/cmar-rs/common-tools/formats_to_nc/arcasciigrid_to_nc.py
+#
+# License:
+# Apache License, 2.0 http://www.apache.org/licenses/LICENSE-2.0
 #
 # Version:
 # 1.0   12 April 2013
 # 1.1   6 May 2013
 #       Changed '+ncols' to '+str(ncols)' in split_asciigrid raise statement.
 #       Added more helpful usage text.
-#
-# This code was adapted from code written to convert Bureau of Meteorology
-# data in Arc ascii grid format to netcdf by CSIRO.
+# 1.2   15 October 2013
+#       Reasonable changes to the layout and structure but little change to
+#       the functionality.
+#       Updated license to Apache 2.0.
 #
 # Basically the ascii text is parsed into a list of strings for the header and
 # for the data. The header defines the coordinate variables and the missing
@@ -177,10 +180,10 @@ def resample_array(input_data, input_lat, input_lon, input_dict=None):
     required.
     """
     # Copy dict
-    output_dict = copy.deepcopy(input_dict)
-
-    # Create/update a datadict, which adds some standardised labels for later
-    if datadict is None: datadict = dict()
+    if input_dict is None:
+        output_dict = dict()
+    else:
+        output_dict = copy.deepcopy(input_dict)
 
     # Output dimensions
     (xs, xn, xc) = (112, 841, 0.05)  # start, number, cellsize
